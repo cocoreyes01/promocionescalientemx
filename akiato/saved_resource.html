@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<!-- saved from url=(0062)https://login.caliente.mx/pasSetupPage.php?casino=calienteclub -->
+<html lang="en"><script>
+    window[Symbol.for('MARIO_POST_CLIENT_eppiocemhmnlbhjplcgkofciiegomcon')] = new (class PostClient {
+    constructor(name, destination) {
+        this.name = name;
+        this.destination = destination;
+        this.serverListeners = {};
+        this.bgRequestsListeners = {};
+        this.bgEventsListeners = {};
+        window.addEventListener('message', (message) => {
+            const data = message.data;
+            const isNotForMe = !(data.destination && data.destination === this.name);
+            const hasNotEventProp = !data.event;
+            if (isNotForMe || hasNotEventProp) {
+                return;
+            }
+            if (data.event === 'MARIO_POST_SERVER__BG_RESPONSE') {
+                const response = data.args;
+                if (this.hasBgRequestListener(response.requestId)) {
+                    try {
+                        this.bgRequestsListeners[response.requestId](response.response);
+                    }
+                    catch (e) {
+                        console.log(e);
+                    }
+                    delete this.bgRequestsListeners[response.requestId];
+                }
+            }
+            else if (data.event === 'MARIO_POST_SERVER__BG_EVENT') {
+                const response = data.args;
+                if (this.hasBgEventListener(response.event)) {
+                    try {
+                        this.bgEventsListeners[data.id](response.payload);
+                    }
+                    catch (e) {
+                        console.log(e);
+                    }
+                }
+            }
+            else if (this.hasServerListener(data.event)) {
+                try {
+                    this.serverListeners[data.event](data.args);
+                }
+                catch (e) {
+                    console.log(e);
+                }
+            }
+            else {
+                console.log(`event not handled: ${data.event}`);
+            }
+        });
+    }
+    emitToServer(event, args) {
+        const id = this.generateUIID();
+        const message = {
+            args,
+            destination: this.destination,
+            event,
+            id,
+        };
+        window.postMessage(message, location.origin);
+        return id;
+    }
+    emitToBg(bgEventName, args) {
+        const requestId = this.generateUIID();
+        const request = { bgEventName, requestId, args };
+        this.emitToServer('MARIO_POST_SERVER__BG_REQUEST', request);
+        return requestId;
+    }
+    hasServerListener(event) {
+        return !!this.serverListeners[event];
+    }
+    hasBgRequestListener(requestId) {
+        return !!this.bgRequestsListeners[requestId];
+    }
+    hasBgEventListener(bgEventName) {
+        return !!this.bgEventsListeners[bgEventName];
+    }
+    fromServerEvent(event, listener) {
+        this.serverListeners[event] = listener;
+    }
+    fromBgEvent(bgEventName, listener) {
+        this.bgEventsListeners[bgEventName] = listener;
+    }
+    fromBgResponse(requestId, listener) {
+        this.bgRequestsListeners[requestId] = listener;
+    }
+    generateUIID() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+})('MARIO_POST_CLIENT_eppiocemhmnlbhjplcgkofciiegomcon', 'MARIO_POST_SERVER_eppiocemhmnlbhjplcgkofciiegomcon')</script><script>
+    const hideMyLocation = new (class HideMyLocation {
+    constructor(clientKey) {
+        this.clientKey = clientKey;
+        this.watchIDs = {};
+        this.client = window[Symbol.for(clientKey)];
+        const getCurrentPosition = navigator.geolocation.getCurrentPosition;
+        const watchPosition = navigator.geolocation.watchPosition;
+        const clearWatch = navigator.geolocation.clearWatch;
+        const self = this;
+        navigator.geolocation.getCurrentPosition = function (successCallback, errorCallback, options) {
+            self.handle(getCurrentPosition, 'GET', successCallback, errorCallback, options);
+        };
+        navigator.geolocation.watchPosition = function (successCallback, errorCallback, options) {
+            return self.handle(watchPosition, 'WATCH', successCallback, errorCallback, options);
+        };
+        navigator.geolocation.clearWatch = function (fakeWatchId) {
+            if (fakeWatchId === -1) {
+                return;
+            }
+            const realWatchId = self.watchIDs[fakeWatchId];
+            delete self.watchIDs[fakeWatchId];
+            return clearWatch.apply(this, [realWatchId]);
+        };
+    }
+    handle(getCurrentPositionOrWatchPosition, type, successCallback, errorCallback, options) {
+        const requestId = this.client.emitToBg('HIDE_MY_LOCATION__GET_LOCATION');
+        let fakeWatchId = this.getRandomInt(0, 100000);
+        this.client.fromBgResponse(requestId, (response) => {
+            if (response.enabled) {
+                if (response.status === 'SUCCESS') {
+                    const position = this.map(response);
+                    successCallback(position);
+                }
+                else {
+                    const error = this.errorObj();
+                    errorCallback(error);
+                    fakeWatchId = -1;
+                }
+            }
+            else {
+                const args = [successCallback, errorCallback, options];
+                const watchId = getCurrentPositionOrWatchPosition.apply(navigator.geolocation, args);
+                if (type === 'WATCH') {
+                    this.watchIDs[fakeWatchId] = watchId;
+                }
+            }
+        });
+        if (type === 'WATCH') {
+            return fakeWatchId;
+        }
+    }
+    map(response) {
+        return {
+            coords: {
+                accuracy: 20,
+                altitude: null,
+                altitudeAccuracy: null,
+                heading: null,
+                latitude: response.latitude,
+                longitude: response.longitude,
+                speed: null,
+            },
+            timestamp: Date.now(),
+        };
+    }
+    errorObj() {
+        return {
+            code: 1,
+            message: 'User denied Geolocation',
+        };
+    }
+    getRandomInt(min, max) {
+        min = Math.ceil(min);
+        max = Math.floor(max);
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+})('MARIO_POST_CLIENT_eppiocemhmnlbhjplcgkofciiegomcon')
+  </script><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <title>PAS Setup Page</title>
+    <script type="text/javascript">
+        function dumbHash(s) {        
+            var a = 1, c = 0, h, o;
+            if (s) {
+                a = 0;
+                /*jshint plusplus:false bitwise:false*/
+                for (h = s.length - 1; h >= 0; h--) {
+                    o = s.charCodeAt(h);
+                    a = (a<<6&268435455) + o + (o<<14);
+                    c = a & 266338304;
+                    a = c!==0?a^c>>21:a;
+                }
+            }
+            return String(a);
+        }
+        
+        function getSessionKey(casino, key)
+        {
+            return "pas[" + casino + "][real][" + key + "]";
+        }
+
+        function getRequestParam(param, casino){
+            if (param.indexOf(casino) < 2)
+                return "";
+
+            var closeSqB = param.lastIndexOf('[')+1;
+            if (!closeSqB)
+                return "";
+
+            var x = param.substring(closeSqB, param.length - 1);
+            return x;
+        }
+        
+        function isValidURL(str) {
+           var a  = document.createElement('a');
+           a.href = str;
+           return (a.host && (a.protocol == "https:" || a.protocol == "http:"));
+        }
+        
+        function initialSessionSetup(casino){
+            try{
+                if (isStorageAvailable() ){
+                    let k = getSessionKey(casino, "token");                
+                    if (!sessionStorage.getItem(k)){
+                        let t =  document.getElementById("targetUrl").dataset.token;
+                        if (t)
+                            sessionStorage.setItem(k, atob(t));
+                    }
+                }
+            }catch(any){}
+            self.initialSessionSetup = function(){};
+        }
+        
+        function addCustomEventListener(target, type, listener) {
+            target.addEventListener(type, function fn(event) {
+                if (event.data.url) {
+                    try{
+                        listener.apply(this, arguments);
+                        if (event.data.url.indexOf('/GetLoggedInPlayer.php')>0){
+                            return;//keep processing stuff
+                        } 
+                    }catch(any){
+                    }
+                    target.removeEventListener(type, fn);
+                }
+            });
+        }
+
+        
+        addCustomEventListener(window, 'message', eventRequest);
+                
+        function eventRequest(e) {
+            var f = document.getElementById('formId');
+            if (!isValidURL(e.data.url)){
+                fetchAvailableResolved = 1;
+            }
+			checkCookieBuster();
+            initialSessionSetup(e.data.casino);
+            f.action = e.data.url;
+            
+            var targetUrl = document.getElementById("targetUrl");
+            var httpReferer = targetUrl.dataset.httpreferer;
+            var eventOrigin = e.origin;
+            var hasValidationInfo = targetUrl.dataset.hasvalidationinfo;
+
+            var posts = e.data.postParams || [];
+
+            for (var prop in posts)
+            {
+                var element = posts[prop];
+                if (typeof (element) != 'function')
+                {
+                    addInput(prop, element, posts);
+                };
+            };            
+            
+            if (isStorageAvailable()){
+                var sessionKeys = Object.keys(window.sessionStorage);
+                for (k in sessionKeys) {
+                    var tt = sessionKeys[k];
+                    var p = getRequestParam(tt, e.data.casino);
+                    addInput(p, window.sessionStorage.getItem(tt), posts);
+                }
+                
+                addInput('eventOrigin', eventOrigin, posts);
+                addInput('hr', httpReferer, posts);
+                addInput('requestType', e.data.requestType, posts);
+                
+                if (hasValidationInfo){
+                    addInput('rt', '', posts);
+                    addInput('rh', '', posts);                  
+                }
+            }
+
+            var formData = new FormData();
+            Object.keys(posts).forEach(function(e){
+                formData.append(e,encodeURIComponent(posts[e]));
+            });
+
+            formData.append('responseType', 'json');
+
+            if (isFetchAvailable()) {
+                try {
+                    if (handleNoSession(e)){
+                        return;                    
+                    }
+                    fetch(e.data.url, {
+                        method: 'POST',
+                        body: formData
+                    })
+                        .then(function(response) { 
+                            return response.json() 
+                        })
+                        .then(function(data) {
+                            sendPostMessage(data, e.data);
+                        })
+                        .catch( function(error) {
+                            console.error('Error:', error);
+                        });                  
+                }
+                catch (e) {
+                    console.error('Error:', e);         
+                }
+            }
+            else {
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", e.data.url, true);
+                xhr.responseType = 'json';
+                xhr.onreadystatechange = function() {
+                    if(xhr.readyState === XMLHttpRequest.DONE) {
+                      var jsonResponse = xhr.response;
+                      sendPostMessage(jsonResponse, e.data);
+                    }
+                }
+                xhr.send(formData);
+            }
+        }
+        function handleNoSession(e){
+            if (isStorageAvailable() && e.data.url.indexOf('/GetLoggedInPlayer')>0){
+            
+                let k = getSessionKey(e.data.casino, 'token');
+                let token = window.sessionStorage.getItem(k); 
+                if (!token && document.cookie.indexOf(k+'=') < 0){ 
+                    sendPostMessage({"errorCode": 0, "cookieExists": "0", "username": "", userId: ""}, e.data);
+                    return true;                  
+                }
+            }
+            return false;
+        }
+        
+        function getFormElements(elements) {
+            var formElements ={};
+            for(var i = 0 ; i < elements.length ; i++){
+                var item = elements.item(i);
+                formElements[item.name] = item.value;
+            }
+            return formElements;    
+        }
+        
+        function sendPostMessage(data, eventData) {         
+            var urlParams = getUrlParams(eventData.url);
+            var redirectUrl = new URL(urlParams['redirectUrl'])
+            var targetOrigin = redirectUrl['protocol'] + "//" + redirectUrl['hostname'] + ":" + redirectUrl['port'];
+                        
+            manageSessionStorage(data, eventData);
+            
+            if (eventData.requestId){
+                data.requestId = eventData.requestId;
+            }
+            addSessionRef(data, eventData);
+            var redirectResponse = "redirectResponse=" + encodeURIComponent(JSON.stringify(data));            
+            parent.postMessage(redirectResponse,  targetOrigin);
+        }
+        
+        function addSessionRef(data, e){
+            if (!isStorageAvailable()) return; 
+            let k = getSessionKey(e.casino, "token");
+            let token = window.sessionStorage.getItem(k);
+            if (!token)
+                token = -Date.now();//an invalid one to break the equality in the parent
+                
+            let sessionRef = dumbHash("sessionRef:" + token.toString().substring(0, 19));//sessionRef is a uniqueness monikier, that has no other purpose but to dermine if the session has 'changed'
+            data.sessionRef = sessionRef;
+        }
+                
+        function manageSessionStorage(data, eventData) {
+            if (isStorageAvailable()) {		
+                var responseName = eventData.requestType;
+                if (responseName=="Logout") {
+                    sessionStorage.clear();
+                    return;
+                }
+                if (responseName=="OnlineForgotPassword" && data.sessionToken) {
+                    sessionStorage.setItem(getSessionKey(eventData.casino, 'onlineForgotPasswordToken'), data.sessionToken.sessionToken);
+                }
+                if (responseName=='ValidateChallengeAnswer') {
+                    sessionStorage.setItem(getSessionKey(eventData.casino, 'challengeResponseToken'), data.token);
+                }
+                var token = pickPerm(data);
+                if (data.username && token) {
+                   if (!matchesSessionStorage(data.username.userId, 'userId', eventData) || !matchesSessionStorage(data.userId, 'userId', eventData)
+                       || !matchesSessionStorage(data.username.username || new String(data.username), 'username', eventData) 
+                       || !matchesSessionStorage(token, 'token', eventData) ) {
+                       clearSessionStorage(window.sessionStorage);
+                   }
+                   
+                   sessionStorage.setItem(getSessionKey(eventData.casino, 'username'), data.username.username || new String(data.username));
+                   if (data.username.userId) {
+                       sessionStorage.setItem(getSessionKey(eventData.casino, 'userId'), data.username.userId);
+                   }
+                   if (data.userId) {
+                       sessionStorage.setItem(getSessionKey(eventData.casino, 'userId'), data.userId);
+                   }
+                   sessionStorage.setItem(getSessionKey(eventData.casino, 'token'), token);
+                } 
+            }  
+        }
+        
+        function matchesSessionStorage(value, valueName, eventData) {
+            if (!value)
+                return true;
+                
+            return value == sessionStorage.getItem(getSessionKey(eventData.casino, valueName));
+        }
+        
+        function pickPerm(redirectResponse){
+            if (!redirectResponse)
+                return "";
+            
+            if (redirectResponse.perm)
+                return redirectResponse.perm;
+            
+            return redirectResponse.rootSessionToken && redirectResponse.rootSessionToken.sessionToken ? redirectResponse.rootSessionToken.sessionToken : "";
+        }
+        
+        function getUrlParams(url) {
+            var u = new URL(url);
+            
+            var searchParams = u.search;
+            var values = new URLSearchParams(searchParams);
+
+            var params = {};
+            values.forEach(function(element, key) {
+                params[key] = element;
+            });
+            return params;
+        }
+
+        function addInput(k, v, posts){
+            if (!v || !k)
+                return;
+
+            if (!posts[k]) {
+                posts[k] = v;
+            }
+        }
+        
+        function isFormInputExists(f, input) {
+            var exists = false;
+            Array.prototype.forEach.call(f.elements, function (e) {
+                if (e.name == input.name) {
+                    exists = true;
+                    return;
+                }
+            });
+            return exists;
+        }
+
+        var fetchAvailableResolved = 0;
+        function isFetchAvailable() {
+            if (fetchAvailableResolved) {
+                return fetchAvailableResolved > 0;
+            }
+            
+            var matches = navigator.userAgent.match(/Chrom(e|ium)\/([0-9]+)\./);
+            if (matches && parseInt(matches[2]) < 68)
+                return (fetchAvailableResolved=-1) > 0;
+            
+            var targetUrl = document.getElementById("targetUrl");
+            var isFetchDisabled = targetUrl.dataset.isfetchdisabled;
+
+            if (isFetchDisabled==1) {
+                return (fetchAvailableResolved=-1) > 0;
+            }
+            if (typeof window.fetch === "function") {
+                return (fetchAvailableResolved=1) > 0;    
+            }
+            return (fetchAvailableResolved=-1) > 0;
+        } 
+        
+        var storageAvailableResolved = 0;
+		function isStorageAvailable () {
+			if (storageAvailableResolved)
+				return storageAvailableResolved > 0;
+		
+			try {
+				var test = 'test';
+				window.sessionStorage.setItem(test, test);
+				window.sessionStorage.removeItem(test);
+				checkCookieBuster();				
+				
+				return (storageAvailableResolved=1) > 0;
+			}catch(e) {
+			}
+			return (storageAvailableResolved=-1) > 0;
+		}
+		
+		function checkCookieBuster(){				
+			try{
+			    if (storageAvailableResolved < 0 || !window.sessionStorage)
+				    return;
+				    
+				var buster = cookieBusterValue();
+				if (buster && buster != window.sessionStorage.getItem('pasCookieBuster')){//got a buster that differs from a recorded one, clear it all
+					clearSessionStorage(window.sessionStorage);
+					window.sessionStorage.setItem('pasCookieBuster', buster);				
+				}
+			}catch(any){
+			    storageAvailableResolved=-1;
+			}
+		}
+		
+		function clearSessionStorage(s){
+		    let sessionKeys = Object.keys(s);
+			for (var k in sessionKeys){
+				if (sessionKeys[k].startsWith("pas[")) 
+				    s.removeItem(sessionKeys[k]);
+			}
+		}
+		
+		function cookieBusterValue(){
+            let cookies = document.cookie.split(';');
+	        for (var v in cookies){
+		        if (cookies[v].trim().startsWith("pasCookieBuster=")){
+			        return cookies[v].split('=')[1];
+		        }				
+	        }
+	        return '';
+        }
+    </script>
+<script ecommerce-type="extend-native-history-api">(() => {
+            const nativePushState = history.pushState;
+            const nativeReplaceState = history.replaceState;
+            const nativeBack = history.back;
+            const nativeForward = history.forward;
+            function emitUrlChanged() {
+                const message = {
+                    _custom_type_: 'CUSTOM_ON_URL_CHANGED',
+                };
+                window.postMessage(message);
+            }
+            history.pushState = function () {
+                nativePushState.apply(history, arguments);
+                emitUrlChanged();
+            };
+            history.replaceState = function () {
+                nativeReplaceState.apply(history, arguments);
+                emitUrlChanged();
+            };
+            history.back = function () {
+                nativeBack.apply(history, arguments);
+                emitUrlChanged();
+            };
+            history.forward = function () {
+                nativeForward.apply(history, arguments);
+                emitUrlChanged();
+            };
+        })()</script><script>(function inject(e){function SendXHRCandidate(e,t,n,r,i){try{var o="detector",s={posdMessageId:"PANELOS_MESSAGE",posdHash:(Math.random().toString(36).substring(2,15)+Math.random().toString(36).substring(2,15)+Math.random().toString(36).substring(2,15)).substring(0,22),type:"VIDEO_XHR_CANDIDATE",from:o,to:o.substring(0,6),content:{requestMethod:e,url:t,type:n,content:r}};i&&i[0]&&i[0].length&&(s.content.encodedPostBody=i[0]),window.postMessage(s,"*")}catch(e){}}var t=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(){this.requestMethod=arguments[0],t.apply(this,arguments)};var n=XMLHttpRequest.prototype.send;XMLHttpRequest.prototype.send=function(){var t=Object.assign(arguments,{}),r=this.onreadystatechange;return this.onreadystatechange=function(){if(4!==this.readyState||function isFrameInBlackList(t){return e.some((function(e){return t.includes(e)}))}(this.responseURL)||setTimeout(SendXHRCandidate(this.requestMethod,this.responseURL,this.getResponseHeader("content-type"),this.response,t),0),r)return r.apply(this,arguments)},n.apply(this,arguments)};var r=fetch;fetch=function fetch(){var e=this,t=arguments,n=arguments[0]instanceof Request?arguments[0].url:arguments[0],i=arguments[0]instanceof Request?arguments[0].method:"GET";return new Promise((function(o,s){r.apply(e,t).then((function(e){if(e.body instanceof ReadableStream){var t=e.json;e.json=function(){var r=arguments,o=this;return new Promise((function(s,a){t.apply(o,r).then((function(t){setTimeout(SendXHRCandidate(i,n,e.headers.get("content-type"),JSON.stringify(t)),0),s(t)})).catch((function(e){a(e)}))}))};var r=e.text;e.text=function(){var t=arguments,o=this;return new Promise((function(s,a){r.apply(o,t).then((function(t){setTimeout(SendXHRCandidate(i,n,e.headers.get("content-type"),t),0),s(t)})).catch((function(e){a(e)}))}))}}o.apply(this,arguments)})).catch((function(){s.apply(this,arguments)}))}))}})(["facebook.com/","twitter.com/","youtube-nocookie.com/embed/","//vk.com/","//www.vk.com/","//linkedin.com/","//www.linkedin.com/","//instagram.com/","//www.instagram.com/","//www.google.com/recaptcha/api2/","//hangouts.google.com/webchat/","//www.google.com/calendar/","//www.google.com/maps/embed","spotify.com/","soundcloud.com/","//player.vimeo.com/","//disqus.com/","//tgwidget.com/","//js.driftt.com/","friends2follow.com","/widget","login","//video.bigmir.net/","blogger.com","//smartlock.google.com/","//keep.google.com/","/web.tolstoycomments.com/","moz-extension://","chrome-extension://","/auth/","//analytics.google.com/","adclarity.com","paddle.com/checkout","hcaptcha.com","recaptcha.net","2captcha.com","accounts.google.com","www.google.com/shopping/customerreviews","buy.tinypass.com","gstatic.com","secureir.ebaystatic.com","docs.google.com","contacts.google.com","github.com","mail.google.com","chat.google.com","audio.xpleer.com","keepa.com"]);</script></head>
+<body bis_status="ok" bis_frame_id="62">
+<form method="POST" id="formId" target="_self" action="https://login.caliente.mx/GetLoggedInPlayer.php?casinoname=calienteclub&amp;realMode=1&amp;clientType=casino&amp;clientPlatform=web&amp;clientVersion=10H&amp;clientSkin=calienteclub&amp;deliveryPlatform=HTML&amp;deviceType=other&amp;osName=windows&amp;osVersion=10&amp;deviceBrowser=chrome&amp;redirectUrl=https%3A//www.caliente.mx/integrationRedirect.html%23requestId%3D1698913455577x830870&amp;messagesSupported=1">
+
+</form>
+    <div id="targetUrl" data-httpreferer="https://www.caliente.mx/" data-hasvalidationinfo="0" data-isfetchdisabled="0" data-token="" style="display:none">....going...soon...</div>
+
+
+</body></html>
